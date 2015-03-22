@@ -1,0 +1,173 @@
+
+---
+output:
+  html_document:
+    highlight: espresso
+    theme: readable
+---
+```{r,echo=FALSE}
+library(pander)
+ show <- data.frame(MachineLearning_Course= "course_project", Coursera_Data_Science="March2015")
+pandoc.table(show, style = "rmarkdown", caption = "This Is Created By Tarig Elamin")
+```
+
+###The predictive modeling process
+
+Predictive Analytics is about predicting future outcome based on
+analyzing data collected previously. It includes two phases:
+
+1. Training phase: Learn a model from training data
+
+2. Predicting phase: Use the model to predict the unknown or future 
+
+outcome.
+
+The Cross Industry Process for Data Mining (CRISP-DM, 1996) provides a common and well-developed framework for delivering data mining projects. CRISP-DM identi_es six steps within a typical data mining
+project:
+
+1. Problem Understanding
+
+2. Data Understanding
+
+3. Data Preparation
+
+4. Modeling
+
+5. Evaluation
+
+6. Deployment
+
+Our project is essentially followed this above  step-by-step process.
+
+### 1. Project Understanding and Objective:
+
+In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+Our goal here is to predict the manner in which they did the exercise. Using the categorical variable "classe" in the training set as the predicted.
+
+### 2. Data Understanding
+
+The data downloaded from the provided class link and saved in our working
+directory and now let's read it in a way to explore its variable types and observations.Techincally speaking,first we should  load some r libraries that we will use along the analytical process.By viewing the data in rattle,we see that the data has 19622 obs and 160 variables and the classe variable has 5 levels.For more details about the data see the Appendix.
+
+```{r machine1}
+library(caret)
+library(kernlab)
+library(randomForest)
+library(corrplot)
+library (rattle)
+library(rpart.plot) # used to  plot Decision Tree 
+library(rpart)
+set.seed(12345)# used 1-5 as the Prof prefered 
+trainingset <- read.csv ("C://Users//abdu//Desktop//data_science//excercise_data//pml-training.csv", na.strings=c("NA","#DIV/0!", ""))
+testingset <- read.csv("C://Users//abdu//Desktop//data_science//excercise_data//pml-testing.csv", na.strings=c("NA","#DIV/0!", ""))
+
+#using the variable names in order to get a clear understanding 
+ mydata<- trainingset
+library(stargazer) 
+stargazer(mydata, type = "text", title="Descriptive statistics", digits=1, out="table1.txt")
+```
+First of all we see that there many variables with completely missing values and in the next step we will remove those variables.But,now let explore graphically the classe varaiable utilizing rattle-see the figure folder attached in our repo.
+The result of the stargazer() function reveals several relevant facts on this data. First there are a considerable number of unknown values in many  columns/variables.For exmple,some variables have only 2% of known values(406 obs of 19622 total obs).There are many variables with 100% missing values.This can be particularly problematic if use them in our predictive model later on.So we should remove the variables with missing values that counts to more than 50% and other variables that seemed has no predditive power such as X or id variable as well as the variable having time part of their names such as timestamps.
+ 
+### 3. Data Preparation 
+
+ A. Removing the variables with totally missing value or having missing 
+ 
+ values exceeded 50% and
+
+ B. removing the variables that seemed have no predictive power such as
+ 
+ the variable:raw_timestamp_part_1, raw_timestamp_part_,2 cvtd_timestamp
+ 
+ , new_window, and  num_window (variable 1 to 7,use the Rattle package 
+ 
+ to see the data in a clear esay way of viewing,if you prefer)
+ 
+ 
+```{r}
+trainingset<-trainingset[,colSums(is.na(trainingset)) == 0]
+testingset <-testingset[,colSums(is.na(testingset)) == 0]
+trainingset<-trainingset[,-c(1:7)]
+testingset <-testingset[,-c(1:7)]
+colnames(trainingset)
+
+```
+Our prepared data then to have 52 variables including the predicted
+variable:classe.
+
+Cross Validation-data splitting
+
+after deleting the above variables that has missing value accounted to more than 50% and deleting the variables that have no predictive power,we move to next step of our data prepration:cross_validation and here we split the data into  training 75% and 25% for the testing data.The plan is to use the new trainged data to run the predictive model and use the testing data to find out about the model results(testing )
+
+```{r}
+subsamples <- createDataPartition(y=trainingset$classe, p=0.75, list=FALSE)
+subTraining <- trainingset[subsamples, ] 
+subTesting <- trainingset[-subsamples, ]
+# let's see for example the new sub_training data with its dimensions
+# and to save space we will not check the sub_testing data dimensions
+dim(subTraining)
+
+```
+
+That is great,let's step in stage four of our predictive analytics
+
+### 4. Building the predictive Model
+
+in this stage 4 of our work,we build many predictive models-starting by running a random forest model -and using the Classe variable as output/depended variable and the rest of the variables as an input/independed variables.
+
+```{r}
+decisiontree_model <- rpart(classe ~ ., data=subTraining, method="class")
+
+# Predicting:
+prediction1 <- predict(decisiontree_model, subTesting, type = "class")
+
+# Plot of the Decision Tree
+rpart.plot(decisiontree_model, main="Classification Tree", extra=102, under=TRUE, faclen=0)
+#first,evaluating the decision tree model 
+library(e1071)
+confusionMatrix(prediction1, subTesting$classe)
+
+```
+
+The second model to build is a random forest model
+
+```{r}
+randomforest_model <- randomForest(classe ~. , data=subTraining, method="class")
+
+# Predicting:
+prediction2 <- predict(randomforest_model, subTesting, type = "class")
+#then evaluating the random forest model
+library(e1071)
+confusionMatrix(prediction2, subTesting$classe)
+```
+
+### 5. Model  Evaluation
+
+Decision
+
+As expected, Random Forest algorithm performed better than Decision Trees.
+Accuracy for Random Forest model was 0.995 (95% CI: (0.993, 0.997)) compared to 0.739 (95% CI: (0.727, 0.752)) for Decision Tree model. The random Forest model is choosen. The accuracy of the model is 0.995. The expected out-of-sample error is estimated at 0.005, or 0.5%. The expected out-of-sample error is calculated as 1 - accuracy for predictions made against the cross-validation set. Our Test data set comprises 20 cases. With an accuracy above 99% on our cross-validation data, we can expect that very few, or none, of the test samples will be missclassified.
+
+### Answering the assignment 20 questions:submission or model deployment
+
+```{r}
+# predict outcome levels on the original Testing data set using the  
+# winning  Random Forest mode;
+predictfinal <- predict(randomforest_model, testingset, type="class")
+predictfinal
+```
+
+using the below code to submit the answer:
+
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(predictfinal)
+```
+
